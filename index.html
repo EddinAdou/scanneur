@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scanner - Identifiant et Mot de Passe</title>
+  <!-- Script pour analyser QR Code -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      text-align: center;
+    }
+
+    #scanner-container {
+      margin: 20px auto;
+    }
+
+    video {
+      width: 300px;
+      height: 200px;
+      border: 2px solid #6ab04c;
+      border-radius: 10px;
+    }
+
+    form {
+      margin-top: 20px;
+    }
+
+    input {
+      width: calc(100% - 40px);
+      max-width: 400px;
+      padding: 10px;
+      margin: 10px auto;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+
+    button {
+      width: calc(100% - 40px);
+      max-width: 400px;
+      padding: 10px;
+      margin: 10px auto;
+      font-size: 16px;
+      background: #6ab04c;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #56a232;
+    }
+
+    #error-message {
+      margin: 20px 0;
+      color: red;
+    }
+  </style>
+</head>
+<body>
+<h1>Scanner QR Code : Identifiant et Mot de Passe</h1>
+<div id="scanner-container">
+  <video id="video" autoplay></video>
+  <p id="error-message"></p>
+</div>
+
+<form>
+  <input type="text" id="identifiant" placeholder="Identifiant" required>
+  <input type="password" id="password" placeholder="Mot de passe" required>
+  <button type="submit">Se connecter</button>
+</form>
+
+<script>
+  // Accès caméra et détection QR Code
+  const video = document.querySelector("#video");
+  const errorMessage = document.querySelector("#error-message");
+
+  let disabledScanning = false; // Pour éviter la duplication de scans
+
+  // Démarrer la caméra
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+          .then((stream) => {
+            video.srcObject = stream;
+          })
+          .catch((err) => {
+            errorMessage.textContent = "Erreur : Impossible d'accéder à la caméra.";
+            console.error(err);
+          });
+
+  // Scanner et trouver QR Code
+  const scanQRCode = () => {
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+
+      // Dimensions du canvas = dimensions vidéo
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // Scan de QR Code dans l'image
+      const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+      const qrCodeData = jsQR(imageData.data, canvas.width, canvas.height, {
+        inversionAttempts: "dontInvert",
+      });
+
+      if (qrCodeData && !disabledScanning) {
+        disabledScanning = true; // On ne scanne qu'une fois
+        const scannedText = qrCodeData.data;
+
+        // Exemple : QR Code contient "identifiant:motdepasse"
+        const data = scannedText.split(":");
+
+        if (data.length === 2) {
+          document.getElementById("identifiant").value = data[0];
+          document.getElementById("password").value = data[1];
+        } else {
+          errorMessage.textContent = "Format QR Code invalide.";
+        }
+
+        console.log("QR Code détecté :", scannedText);
+      }
+    }
+  };
+
+  // Rafraîchissement continu du scanner
+  setInterval(scanQRCode, 500);
+</script>
+</body>
+</html>
