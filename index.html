@@ -108,7 +108,7 @@
             console.error(err);
           });
 
-  // Étape 2 : Scanning du QR Code
+  // Étape 2 : Scanner le QR Code
   const scanQRCode = () => {
     if (video.readyState === video.HAVE_ENOUGH_DATA) {
       const canvas = document.createElement("canvas");
@@ -137,27 +137,21 @@
     }
   };
 
-  // Étape 3 : Gestion des données scannées
+  // Étape 3 : Traiter les données scannées
   const handleScannedData = (data) => {
     try {
-      // Option 1 : Format JSON attendu ("id" et "password")
-      if (data.startsWith("{") && data.endsWith("}")) {
-        const parsedData = JSON.parse(data);
-        document.getElementById("identifiant").value = parsedData.id || "";
-        document.getElementById("password").value = parsedData.password || "";
-        successMessage.textContent = "QR Code scanné et formulaire rempli avec succès !";
-      }
-      // Option 2 : Format texte simple "identifiant:motdepasse"
-      else if (data.includes(":")) {
-        const parts = data.split(":");
-        document.getElementById("identifiant").value = parts[0];
-        document.getElementById("password").value = parts[1];
-        successMessage.textContent = "QR Code scanné et formulaire rempli avec succès !";
-      }
-      // Sinon : Format invalide
-      else {
-        errorMessage.textContent = "Format du QR Code invalide.";
-        successMessage.textContent = "";
+      // Le QR Code contient des données au format "identifiant;motdepasse"
+      if (data.includes(";")) {
+        const parts = data.split(";");
+        if (parts.length === 2) {
+          document.getElementById("identifiant").value = parts[0]; // Partie avant le ";"
+          document.getElementById("password").value = parts[1];   // Partie après le ";"
+          successMessage.textContent = "QR Code scanné et formulaire rempli avec succès !";
+        } else {
+          errorMessage.textContent = "Format du QR Code invalide. Le format doit être 'identifiant;motdepasse'.";
+        }
+      } else {
+        errorMessage.textContent = "Format du QR Code invalide. Le séparateur ';' est attendu.";
       }
     } catch (err) {
       errorMessage.textContent = "Erreur lors du traitement des données du QR Code.";
