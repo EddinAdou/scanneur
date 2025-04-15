@@ -3,14 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Scanner - Identifiant et Mot de Passe</title>
-  <!-- Script pour analyser QR Code -->
+  <title>Scanner - Identifiant & Mot de passe</title>
+  <!-- Librairie pour scanner QR Code -->
   <script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
       margin: 20px;
+      padding: 20px;
       text-align: center;
+      background-color: #f9f9f9;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+      color: #333;
     }
 
     #scanner-container {
@@ -56,18 +63,28 @@
     }
 
     #error-message {
-      margin: 20px 0;
+      margin-top: 20px;
       color: red;
+    }
+
+    /* Décorations supplémentaires */
+    #success-message {
+      margin-top: 20px;
+      color: green;
     }
   </style>
 </head>
 <body>
-<h1>Scanner QR Code : Identifiant et Mot de Passe</h1>
+<h1>Scanner QR Code : Formulaire</h1>
+
+<!-- Bloc pour la caméra -->
 <div id="scanner-container">
   <video id="video" autoplay></video>
   <p id="error-message"></p>
+  <p id="success-message"></p>
 </div>
 
+<!-- Formulaire -->
 <form>
   <input type="text" id="identifiant" placeholder="Identifiant" required>
   <input type="password" id="password" placeholder="Mot de passe" required>
@@ -75,59 +92,80 @@
 </form>
 
 <script>
-  // Accès caméra et détection QR Code
-  const video = document.querySelector("#video");
+  // Initialisation des variables
+  const video = document.querySelector("#video"); // Élément pour afficher la caméra
   const errorMessage = document.querySelector("#error-message");
+  const successMessage = document.querySelector("#success-message");
+  let disabledScanning = false; // Empêcher plusieurs scans simultanés
 
-  let disabledScanning = false; // Pour éviter la duplication de scans
-
-  // Démarrer la caméra
-  navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+  // Étape 1 : Démarrage de la caméra
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }) // Utilisation caméra arrière
           .then((stream) => {
-            video.srcObject = stream;
+            video.srcObject = stream; // Flux vidéo
           })
           .catch((err) => {
             errorMessage.textContent = "Erreur : Impossible d'accéder à la caméra.";
             console.error(err);
           });
 
-  // Scanner et trouver QR Code
+  // Étape 2 : Scanning du QR Code
   const scanQRCode = () => {
     if (video.readyState === video.HAVE_ENOUGH_DATA) {
       const canvas = document.createElement("canvas");
       const context = canvas.getContext("2d");
 
-      // Dimensions du canvas = dimensions vidéo
+      // Dimensions du canvas = dimensions de la vidéo
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      // Scan de QR Code dans l'image
+      // Décodage du QR Code
       const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
       const qrCodeData = jsQR(imageData.data, canvas.width, canvas.height, {
-        inversionAttempts: "dontInvert",
+        inversionAttempts: "dontInvert", // Tentative d'inversion de couleurs
       });
 
+      // Si un QR Code est détecté
       if (qrCodeData && !disabledScanning) {
-        disabledScanning = true; // On ne scanne qu'une fois
+        disabledScanning = true; // Désactiver les scans multiples
         const scannedText = qrCodeData.data;
-
-        // Exemple : QR Code contient "identifiant:motdepasse"
-        const data = scannedText.split(":");
-
-        if (data.length === 2) {
-          document.getElementById("identifiant").value = data[0];
-          document.getElementById("password").value = data[1];
-        } else {
-          errorMessage.textContent = "Format QR Code invalide.";
-        }
-
         console.log("QR Code détecté :", scannedText);
+
+        // Traitement des données scannées
+        handleScannedData(scannedText);
       }
     }
   };
 
-  // Rafraîchissement continu du scanner
+  // Étape 3 : Gestion des données scannées
+  const handleScannedData = (data) => {
+    try {
+      // Option 1 : Format JSON attendu ("id" et "password")
+      if (data.startsWith("{") && data.endsWith("}")) {
+        const parsedData = JSON.parse(data);
+        document.getElementById("identifiant").value = parsedData.id || "";
+        document.getElementById("password").value = parsedData.password || "";
+        successMessage.textContent = "QR Code scanné et formulaire rempli avec succès !";
+      }
+      // Option 2 : Format texte simple "identifiant:motdepasse"
+      else if (data.includes(":")) {
+        const parts = data.split(":");
+        document.getElementById("identifiant").value = parts[0];
+        document.getElementById("password").value = parts[1];
+        successMessage.textContent = "QR Code scanné et formulaire rempli avec succès !";
+      }
+      // Sinon : Format invalide
+      else {
+        errorMessage.textContent = "Format du QR Code invalide.";
+        successMessage.textContent = "";
+      }
+    } catch (err) {
+      errorMessage.textContent = "Erreur lors du traitement des données du QR Code.";
+      console.error(err);
+    }
+  };
+
+  // Répétition de la lecture du QR Code toutes les 500ms
   setInterval(scanQRCode, 500);
 </script>
 </body>
